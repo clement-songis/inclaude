@@ -33,12 +33,11 @@ the store, --to (and --from) can be left out: the other one is meant.
 import collections
 import os
 
-from . import options, store
+from . import options, store, ui
 
 
 def register(sub):
-    parser = sub.add_parser("move", help="sessions from one account to another",
-                            description=__doc__)
+    parser = options.subparser(sub, "move", "sessions from one account to another", __doc__)
     parser.add_argument("sessions", nargs="*", metavar="SESSION",
                         help="a session to move, by id prefix or cliSessionId")
     parser.add_argument("--all", action="store_true",
@@ -87,21 +86,47 @@ def rehome(rec, mcp_config):
     return rec
 
 
+def pick_sessions(src, labels, args):
+    """Let the user choose sessions to move from the source workspace."""
+    records = [rec for _, rec in store.load_records(src)
+               if store.matches_filters(rec, args)]
+    records.sort(key=lambda rec: rec.get("lastActivityAt") or 0, reverse=True)
+    if not records:
+        store.die("no session to move out of " + store.describe(src, labels))
+    chosen = ui.choose(records, store.row, "move which? ", multiple=True,
+                       header=f"in {store.describe(src, labels)} "
+                              "(a number, a range like 1-4, several, or 'all'):")
+    return [(src, os.path.join(src.path, f"{rec['sessionId']}.json"), rec)
+            for rec in chosen]
+
+
 def run(args):
-    if args.all == bool(args.sessions):
-        store.die("give sessions to move, or --all; `inclaude list` shows them")
     spaces = store.workspaces()
     labels = store.account_labels()
     src = store.resolve_workspace(args.src, spaces, labels) if args.src else None
     dst = store.resolve_workspace(args.dst, spaces, labels) if args.dst else None
+    asking = not args.all and not args.sessions and ui.interactive(args)
+    if not args.all and not args.sessions and not asking:
+        store.die("give sessions to move, or --all (or run in a terminal to "
+                  "pick them); `inclaude list` shows them")
+    if args.all and args.sessions:
+        store.die("give sessions to move, or --all, not both")
 
-    if args.all:
+    if args.all or asking:
         if src is None:
-            if dst is None:
+            if dst is not None:
+                src = store.other_workspace(dst, spaces, labels)
+            elif len(spaces) == 2:
+                src = None  # resolved once dst is known, below
+            if src is None and asking:
+                src = store.choose_workspace(spaces, labels, "move out of which? ")
+            if src is None:
                 store.die("--all needs --from (or --to, with two workspaces)")
-            src = store.other_workspace(dst, spaces, labels)
-        chosen = [(src, path, rec) for path, rec in store.load_records(src)
-                  if store.matches_filters(rec, args)]
+        if asking:
+            chosen = pick_sessions(src, labels, args)
+        else:
+            chosen = [(src, path, rec) for path, rec in store.load_records(src)
+                      if store.matches_filters(rec, args)]
     else:
         index = [(ws, path, rec) for ws in spaces
                  for path, rec in store.load_records(ws)]
@@ -123,7 +148,14 @@ def run(args):
         if len(sources) != 1:
             store.die("the sessions come from several workspaces, say where "
                       "they go with --to")
-        dst = store.other_workspace(sources.pop(), spaces, labels)
+        source = sources.pop()
+        if len(spaces) == 2:
+            dst = store.other_workspace(source, spaces, labels)
+        elif ui.interactive(args):
+            dst = store.choose_workspace(spaces, labels, "move into which? ",
+                                         exclude=source)
+        if dst is None:
+            store.die("say where they go with --to")
 
     dst_records = store.load_records(dst)
     dst_ids = {rec["sessionId"] for _, rec in dst_records}

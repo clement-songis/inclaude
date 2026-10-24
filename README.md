@@ -19,6 +19,12 @@ inclaude move 9419e79b 3dc35ee9      # sessions from one account to the other
 inclaude move --all --from c483 --to current --project nixos
 ```
 
+Run `import` or `move` with no id, from a terminal, and they show a numbered
+menu to pick from instead of making you hunt for one; the same goes for the
+account when it is ambiguous. Pass the ids (and `--account`/`--from`/`--to`)
+to skip the menus, or `--no-input` to forbid them so a script errors rather
+than blocks.
+
 ## Install / run
 
 With Nix flakes:
@@ -36,12 +42,20 @@ Linux only: the store lives under `~/.config/Claude`. macOS keeps it under
 
 ## Before writing anything
 
-**Quit the desktop app first.** It holds its list in memory and writes it back
-out on exit, undoing whatever was done underneath it. Every writing command
-refuses to run while the app is up (`--force` overrides), shows its plan first
-(`--dry-run` stops there), and copies the whole store to
-`~/.config/Claude/claude-code-sessions.bak-<timestamp>` before touching it
-(`--no-backup` skips that).
+**The desktop app has to quit first.** It holds its list in memory and writes
+it back out on exit, which would undo whatever was done underneath it. So every
+writing command, when the app is up, either quits it or stops:
+
+- from a terminal it offers to quit the app, waits for it, then proceeds;
+- `--kill` quits it outright, no question asked;
+- `--force` writes underneath the running app anyway, a last resort that the
+  app may overwrite when it exits;
+- otherwise it stops and tells you to quit the app (this is what `--no-input`
+  gets in a script).
+
+Each writing command also shows its plan first (`--dry-run` stops there) and
+copies the whole store to `~/.config/Claude/claude-code-sessions.bak-<timestamp>`
+before touching it (`--no-backup` skips that).
 
 ## How it works
 

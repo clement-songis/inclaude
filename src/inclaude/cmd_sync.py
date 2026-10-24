@@ -48,8 +48,7 @@ from . import cmd_import, options, store, transcripts
 
 
 def register(sub):
-    parser = sub.add_parser("sync", help="every missing terminal session into the app",
-                            description=__doc__)
+    parser = options.subparser(sub, "sync", "every missing terminal session into the app", __doc__)
     options.add_account(parser)
     options.add_filters(parser)
     parser.add_argument("--min-turns", type=int, default=1,
@@ -89,7 +88,7 @@ def held_by(me, uuids, others, threshold):
 def run(args):
     spaces = store.workspaces()
     labels = store.account_labels()
-    ws = store.pick_workspace(args.account, spaces, labels)
+    ws = store.pick_workspace(args.account, spaces, labels, args)
     known = {rec.get("cliSessionId") for _, rec in store.load_records(ws)}
     deleted = {} if args.include_deleted else store.tombstones(ws)
     cutoff = time.time() - args.since * 86400 if args.since else None

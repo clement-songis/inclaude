@@ -9,9 +9,14 @@ list, and move them between accounts.
 
 The desktop app keeps its own per-account list of sessions and has no import;
 the CLI keeps transcripts it never shows. These commands bridge the two by
-writing the app's metadata records directly. Close the desktop app before any
-command that writes: it keeps the list in memory and writes it back out on
-exit. The whole store is copied to a timestamped .bak before every write.
+writing the app's metadata records directly. The app has to quit before any
+command that writes, since it keeps the list in memory and writes it back out
+on exit: from a terminal inclaude offers to quit it, --kill does so outright.
+The whole store is copied to a timestamped .bak before every write.
+
+Run import or move with no id, from a terminal, to pick from a menu instead
+of looking one up; pass ids and --account to skip the menus, --no-input to
+forbid them.
 
 Commands:
   list          the app's sessions, per account

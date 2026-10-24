@@ -141,9 +141,19 @@ def other_workspace(ws, spaces, labels):
     return others[0]
 
 
-def pick_workspace(spec, spaces, labels):
+def choose_workspace(spaces, labels, prompt, exclude=None):
+    """Ask which workspace, from a terminal. The caller has already checked
+    there is a choice to make and that asking is allowed."""
+    from . import ui
+    options = [w for w in spaces if w != exclude]
+    return ui.choose(options, lambda w: describe(w, labels), prompt)
+
+
+def pick_workspace(spec, spaces, labels, args=None):
     """The workspace a single-store command works in: the one asked for, else
-    the only one, else the one of the account the app last signed in with."""
+    the only one, else the app's current account, else -- from a terminal --
+    the one picked from a menu."""
+    from . import ui
     if spec:
         return resolve_workspace(spec, spaces, labels)
     if len(spaces) == 1:
@@ -151,6 +161,10 @@ def pick_workspace(spec, spaces, labels):
     current = [w for w in spaces if "current" in labels.get(w.account, [])]
     if len(current) == 1:
         return current[0]
+    if args is not None and ui.interactive(args):
+        chosen = choose_workspace(spaces, labels, "account? ")
+        if chosen:
+            return chosen
     die("several workspaces, pick one with --account: "
         + ", ".join(describe(w, labels) for w in spaces))
 
@@ -227,25 +241,36 @@ def backup_store():
 
 
 def app_running():
-    """True if a claude-desktop process is alive. Reads /proc directly so the
-    package needs no runtime dependency just to call pgrep."""
-    for entry in glob.glob("/proc/[0-9]*/cmdline"):
-        try:
-            with open(entry, "rb") as fh:
-                if b"claude-desktop" in fh.read():
-                    return True
-        except OSError:
-            continue
-    return False
+    """True if a claude-desktop process is alive."""
+    from . import ui
+    return bool(ui.app_pids())
 
 
 def prepare_write(args):
     """The checks every writer runs after showing its plan: the app must be
-    down (or --force given), and the store is backed up (unless --no-backup)."""
-    if app_running() and not args.force:
-        die("claude-desktop is running. It keeps this list in memory and writes "
-            "it back out on exit, which would undo this. Quit it and re-run "
-            "(or pass --force).")
+    down, and the store is backed up (unless --no-backup).
+
+    The app keeps its list in memory and writes it back out on exit, which
+    would undo this, so it has to go first. --kill quits it outright; from a
+    terminal, inclaude offers to; --force writes anyway, underneath it, as a
+    last resort; otherwise it stops and says so.
+    """
+    from . import ui
+    if app_running():
+        if args.kill:
+            ui.quit_app()
+        elif args.force:
+            print("warning: claude-desktop is running; writing underneath it. "
+                  "It may overwrite this when it exits.")
+        elif ui.interactive(args) and ui.confirm(
+                "claude-desktop is running and must quit first. Quit it now?"):
+            ui.quit_app()
+        else:
+            die("claude-desktop is running. It keeps this list in memory and "
+                "writes it back out on exit, which would undo this. Quit it and "
+                "re-run (or pass --kill, or --force to write underneath it).")
+        if app_running() and not args.force:
+            die("claude-desktop is still running; aborting.")
     if not args.no_backup:
         print(f"backup: {backup_store()}")
 

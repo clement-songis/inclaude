@@ -17,14 +17,14 @@ import os
 import time
 import uuid
 
-from . import options, store, transcripts
+from . import options, store, transcripts, ui
 
 
 def register(sub):
-    parser = sub.add_parser("import", help="one terminal session into the app",
-                            description=__doc__)
-    parser.add_argument("cli_session_id", metavar="CLI_SESSION_ID",
-                        help="the transcript's name under ~/.claude/projects")
+    parser = options.subparser(sub, "import", "one terminal session into the app", __doc__)
+    parser.add_argument("cli_session_id", metavar="CLI_SESSION_ID", nargs="?",
+                        help="the transcript's name under ~/.claude/projects; "
+                             "omit to pick one from a menu")
     parser.add_argument("--title", help="override the transcript's own title")
     parser.add_argument("--model", help="override the model read from the transcript")
     parser.add_argument("--effort", help="override the effort read from the transcript")
@@ -64,17 +64,59 @@ def build_record(cli_id, meta, path, mcp_config, title=None, model=None,
     return record
 
 
+def pick_transcript(ws, args):
+    """Let the user choose a transcript the workspace does not already list.
+    Returns (cli_id, path, meta)."""
+    known = {rec.get("cliSessionId") for _, rec in store.load_records(ws)}
+    rows = []
+    for cli_id, path in transcripts.candidates().items():
+        if cli_id in known:
+            continue
+        meta = transcripts.scan_transcript(path)
+        if not meta["replies"]:
+            continue
+        _, last = transcripts.time_bounds(meta, path)
+        rows.append((last, cli_id, path, meta))
+    rows.sort(reverse=True)
+    if not rows:
+        store.die("no terminal session left to import into "
+                  + store.describe(ws, store.account_labels()))
+
+    def render(r):
+        last, cli_id, path, meta = r
+        stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(last / 1000))
+        where = (meta["cwds"][-1] if meta["cwds"] else "").replace(
+            store.HOME + "/", "~/")
+        if len(where) > 34:
+            where = "…" + where[-33:]
+        title = meta["custom_title"] or meta["ai_title"] or ""
+        return f"{stamp}  {meta['turns']:>4} turns  {where:<34} {title[:40]}"
+
+    chosen = ui.choose(rows, render, "import which? ",
+                       header=f"importable into {store.describe(ws, store.account_labels())}:")
+    if not chosen:
+        store.die("nothing picked")
+    return chosen[1], chosen[2], chosen[3]
+
+
 def run(args):
     spaces = store.workspaces()
     labels = store.account_labels()
-    ws = store.pick_workspace(args.account, spaces, labels)
-    path = transcripts.find_transcript(args.cli_session_id)
-    meta = transcripts.scan_transcript(path)
+    ws = store.pick_workspace(args.account, spaces, labels, args)
+
+    if args.cli_session_id:
+        path = transcripts.find_transcript(args.cli_session_id)
+        meta = transcripts.scan_transcript(path)
+        cli_id = args.cli_session_id
+    elif ui.interactive(args):
+        cli_id, path, meta = pick_transcript(ws, args)
+    else:
+        store.die("give a cliSessionId (or run in a terminal to pick one)")
 
     existing = next((rec for _, rec in store.load_records(ws)
-                     if rec.get("cliSessionId") == args.cli_session_id), None)
+                     if rec.get("cliSessionId") == cli_id), None)
     mcp_config = store.newest_mcp_config(ws) if not existing else None
-    record = build_record(args.cli_session_id, meta, path, mcp_config,
+    record = build_record(cli_id, meta, path, mcp_config,
                           args.title, args.model, args.effort, existing)
 
     fmt = "%Y-%m-%d %H:%M"

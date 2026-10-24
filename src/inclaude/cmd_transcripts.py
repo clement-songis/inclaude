@@ -7,13 +7,12 @@ from the app's list.
 import os
 import time
 
-from . import store, transcripts
+from . import options, store, transcripts
 
 
 def register(sub):
-    parser = sub.add_parser("transcripts",
-                            help="the CLI's transcripts and their status",
-                            description=__doc__)
+    parser = options.subparser(sub, "transcripts",
+                             "the CLI's transcripts and their status", __doc__)
     parser.add_argument("--limit", type=int, default=40, metavar="N",
                         help="show the N most recent (default 40, 0 for all)")
     parser.set_defaults(func=run)

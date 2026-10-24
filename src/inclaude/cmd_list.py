@@ -9,8 +9,7 @@ from . import options, store
 
 
 def register(sub):
-    parser = sub.add_parser("list", help="the app's sessions, per account",
-                            description=__doc__)
+    parser = options.subparser(sub, "list", "the app's sessions, per account", __doc__)
     options.add_account(parser)
     options.add_filters(parser)
     parser.set_defaults(func=run)

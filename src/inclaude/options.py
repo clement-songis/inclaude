@@ -1,4 +1,12 @@
 """Flags shared by several commands."""
+import argparse
+
+
+def subparser(sub, name, help, description):
+    """A subcommand whose long description keeps the line breaks it was
+    written with."""
+    return sub.add_parser(name, help=help, description=description,
+                          formatter_class=argparse.RawDescriptionHelpFormatter)
 
 
 def add_account(parser):
@@ -20,5 +28,10 @@ def add_write(parser):
                         help="show the plan, write nothing")
     parser.add_argument("--no-backup", action="store_true",
                         help="skip the .bak copy of the store")
+    parser.add_argument("--kill", action="store_true",
+                        help="quit claude-desktop first, without asking")
     parser.add_argument("--force", action="store_true",
-                        help="write even though claude-desktop is running")
+                        help="write even though claude-desktop is running, "
+                             "underneath it (last resort)")
+    parser.add_argument("--no-input", action="store_true",
+                        help="never stop to ask; error instead of prompting")
