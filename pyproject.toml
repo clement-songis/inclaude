@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "inclaude"
+version = "0.1.0"
+description = "Include your terminal Claude Code sessions in the desktop app's list, and move them between accounts"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "Clément Songis" }]
+keywords = ["claude", "claude-code", "sessions"]
+classifiers = [
+  "Environment :: Console",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Repository = "https://github.com/clement-songis/inclaude"
+
+[project.scripts]
+inclaude = "inclaude.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/inclaude"]
