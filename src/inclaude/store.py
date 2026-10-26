@@ -30,7 +30,10 @@ import sys
 import time
 
 HOME = os.path.expanduser("~")
-APP_DIR = os.path.join(HOME, ".config", "Claude")
+if sys.platform == "darwin":
+    APP_DIR = os.path.join(HOME, "Library", "Application Support", "Claude")
+else:
+    APP_DIR = os.path.join(HOME, ".config", "Claude")
 STORE_ROOT = os.path.join(APP_DIR, "claude-code-sessions")
 APP_CONFIG = os.path.join(APP_DIR, "config.json")
 CLI_CONFIG = os.path.join(HOME, ".claude.json")

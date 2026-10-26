@@ -37,8 +37,9 @@ or add the flake as an input and install `packages.${system}.default`, or
 apply `overlays.default` and install `pkgs.inclaude`. Without Nix, it is a
 plain Python package with no dependencies: `pip install .` (Python 3.10+).
 
-Linux only: the store lives under `~/.config/Claude`. macOS keeps it under
-`~/Library/Application Support` and has not been looked at.
+Linux and macOS. The store lives under `~/.config/Claude` on Linux and under
+`~/Library/Application Support/Claude` on macOS; paths below use the Linux
+one. On macOS the app is quit through AppleScript, like Cmd+Q.
 
 ## Before writing anything
 

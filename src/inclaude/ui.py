@@ -8,6 +8,7 @@ erroring instead of stopping to ask.
 import glob
 import os
 import signal
+import subprocess
 import sys
 import time
 
@@ -105,8 +106,15 @@ def choose(items, render, prompt, multiple=False, header=None):
 
 
 def app_pids():
-    """Pids of the running claude-desktop processes, read straight from
-    /proc so nothing need be installed just to find them."""
+    """Pids of the running desktop app's processes."""
+    if sys.platform == "darwin":
+        return _macos_app_pids()
+    return _linux_app_pids()
+
+
+def _linux_app_pids():
+    """Read straight from /proc so nothing need be installed just to find
+    them."""
     pids = []
     for entry in glob.glob("/proc/[0-9]*/cmdline"):
         try:
@@ -118,18 +126,37 @@ def app_pids():
     return pids
 
 
+def _macos_app_pids():
+    """Every process running out of the Claude.app bundle: the main
+    executable and its Electron helpers."""
+    output = subprocess.run(["ps", "-axo", "pid=,command="],
+                            capture_output=True, text=True).stdout
+    pids = []
+    for line in output.splitlines():
+        pid, _, command = line.strip().partition(" ")
+        if "/Claude.app/Contents/" in command:
+            pids.append(int(pid))
+    return pids
+
+
 def quit_app(timeout=15):
-    """Ask the processes to quit (SIGTERM), wait, and SIGKILL whatever is
-    left. Returns True once none remain."""
+    """Ask the app to quit (Cmd+Q on macOS, SIGTERM elsewhere), wait, and
+    SIGKILL whatever is left. Returns True once none remain."""
     pids = app_pids()
     if not pids:
         return True
     print(f"quitting claude-desktop ({len(pids)} processes)...")
-    for pid in pids:
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+    if sys.platform == "darwin":
+        # A signal skips the app's own quit path, which is what saves its
+        # state; AppleScript goes through it like Cmd+Q.
+        subprocess.run(["osascript", "-e", 'quit app "Claude"'],
+                       capture_output=True)
+    else:
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
     deadline = time.time() + timeout
     while time.time() < deadline:
         if not app_pids():
