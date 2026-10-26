@@ -27,6 +27,13 @@ than blocks.
 
 ## Install / run
 
+With Homebrew (macOS), the formula lives in this repository:
+
+```
+brew tap clement-songis/inclaude https://github.com/clement-songis/inclaude
+brew install inclaude
+```
+
 With Nix flakes:
 
 ```
