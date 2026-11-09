@@ -2,10 +2,12 @@
 
 The app lists one metadata record per session under
 
-  ~/.config/Claude/claude-code-sessions/<account>/<workspace>/local_<uuid>.json
+  <app dir>/claude-code-sessions/<account>/<workspace>/local_<uuid>.json
 
-where <account> and <workspace> are the uuids of the signed-in account and of
-its organisation. A record holds metadata only -- title, cwd, model, archive
+where <app dir> is ~/.config/Claude on Linux ($XDG_CONFIG_HOME/Claude when
+that is set) and ~/Library/Application Support/Claude on macOS, and <account>
+and <workspace> are the uuids of the signed-in account and of its
+organisation. A record holds metadata only -- title, cwd, model, archive
 flag, and so on -- and points by `cliSessionId` at the transcript the CLI
 keeps in ~/.claude/projects, which every account shares. Next to the records:
 
@@ -33,7 +35,8 @@ HOME = os.path.expanduser("~")
 if sys.platform == "darwin":
     APP_DIR = os.path.join(HOME, "Library", "Application Support", "Claude")
 else:
-    APP_DIR = os.path.join(HOME, ".config", "Claude")
+    APP_DIR = os.path.join(os.environ.get("XDG_CONFIG_HOME")
+                           or os.path.join(HOME, ".config"), "Claude")
 STORE_ROOT = os.path.join(APP_DIR, "claude-code-sessions")
 APP_CONFIG = os.path.join(APP_DIR, "config.json")
 CLI_CONFIG = os.path.join(HOME, ".claude.json")
@@ -244,7 +247,7 @@ def backup_store():
 
 
 def app_running():
-    """True if a claude-desktop process is alive."""
+    """True if a process of the desktop app is alive."""
     from . import ui
     return bool(ui.app_pids())
 
@@ -263,17 +266,17 @@ def prepare_write(args):
         if args.kill:
             ui.quit_app()
         elif args.force:
-            print("warning: claude-desktop is running; writing underneath it. "
+            print("warning: the desktop app is running; writing underneath it. "
                   "It may overwrite this when it exits.")
         elif ui.interactive(args) and ui.confirm(
-                "claude-desktop is running and must quit first. Quit it now?"):
+                "the desktop app is running and must quit first. Quit it now?"):
             ui.quit_app()
         else:
-            die("claude-desktop is running. It keeps this list in memory and "
+            die("the desktop app is running. It keeps this list in memory and "
                 "writes it back out on exit, which would undo this. Quit it and "
                 "re-run (or pass --kill, or --force to write underneath it).")
         if app_running() and not args.force:
-            die("claude-desktop is still running; aborting.")
+            die("the desktop app is still running; aborting.")
     if not args.no_backup:
         print(f"backup: {backup_store()}")
 

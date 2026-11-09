@@ -6,12 +6,12 @@
   outputs =
     { self, nixpkgs }:
     let
-      # The store this reads lives under ~/.config/Claude, which is where the
-      # app keeps it on Linux only; macOS puts it under ~/Library/Application
-      # Support and has not been looked at.
+      # The store lives under ~/.config/Claude on Linux and under
+      # ~/Library/Application Support/Claude on macOS.
       systems = [
         "x86_64-linux"
         "aarch64-linux"
+        "aarch64-darwin"
       ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in

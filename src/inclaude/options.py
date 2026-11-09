@@ -29,9 +29,9 @@ def add_write(parser):
     parser.add_argument("--no-backup", action="store_true",
                         help="skip the .bak copy of the store")
     parser.add_argument("--kill", action="store_true",
-                        help="quit claude-desktop first, without asking")
+                        help="quit the desktop app first, without asking")
     parser.add_argument("--force", action="store_true",
-                        help="write even though claude-desktop is running, "
+                        help="write even though the desktop app is running, "
                              "underneath it (last resort)")
     parser.add_argument("--no-input", action="store_true",
                         help="never stop to ask; error instead of prompting")

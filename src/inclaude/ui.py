@@ -128,14 +128,22 @@ def _linux_app_pids():
 
 def _macos_app_pids():
     """Every process running out of the Claude.app bundle: the main
-    executable and its Electron helpers."""
-    output = subprocess.run(["ps", "-axo", "pid=,command="],
-                            capture_output=True, text=True).stdout
+    executable and its Electron helpers. Matched on the executable path
+    alone (comm), not the full command line, so a process that merely
+    mentions Claude.app in its arguments is never taken for the app."""
+    try:
+        output = subprocess.run(["ps", "-axo", "pid=,comm="], capture_output=True,
+                                text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return []
     pids = []
     for line in output.splitlines():
-        pid, _, command = line.strip().partition(" ")
-        if "/Claude.app/Contents/" in command:
-            pids.append(int(pid))
+        pid, _, comm = line.strip().partition(" ")
+        if "/Claude.app/Contents/" in comm:
+            try:
+                pids.append(int(pid))
+            except ValueError:
+                continue
     return pids
 
 
@@ -145,7 +153,7 @@ def quit_app(timeout=15):
     pids = app_pids()
     if not pids:
         return True
-    print(f"quitting claude-desktop ({len(pids)} processes)...")
+    print(f"quitting the desktop app ({len(pids)} processes)...")
     if sys.platform == "darwin":
         # A signal skips the app's own quit path, which is what saves its
         # state; AppleScript goes through it like Cmd+Q.
@@ -160,7 +168,7 @@ def quit_app(timeout=15):
     deadline = time.time() + timeout
     while time.time() < deadline:
         if not app_pids():
-            print("claude-desktop quit.")
+            print("the desktop app quit.")
             return True
         time.sleep(0.3)
     leftover = app_pids()
@@ -173,5 +181,5 @@ def quit_app(timeout=15):
                 pass
         time.sleep(0.5)
     done = not app_pids()
-    print("claude-desktop stopped." if done else "could not stop claude-desktop.")
+    print("the desktop app stopped." if done else "could not stop the desktop app.")
     return done
